@@ -10,6 +10,7 @@ const SideBar = () => {
   const{logout,onlineUsers}=useContext(Authcontext)
 
   const[input,setInput]=useState(false)
+  const[showDropdown,setShowDropdown]=useState(false) // Add state for dropdown visibility
 
   const navigate = useNavigate();
 
@@ -19,6 +20,28 @@ const SideBar = () => {
     getUsers();
   },[onlineUsers])
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showDropdown && !event.target.closest('.dropdown-container')) {
+        setShowDropdown(false)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [showDropdown])
+
+  const handleProfileClick = () => {
+    setShowDropdown(false)
+    navigate('/profile')
+  }
+
+  const handleLogoutClick = () => {
+    setShowDropdown(false)
+    logout()
+  }
+
   return (
     <div className={`bg-gradient-to-b from-white/10 to-white/5 h-full p-5 backdrop-blur-sm border-r border-white/20 overflow-y-scroll text-white ${selectedUser ? "max-md:hidden" : ''}`}>
       
@@ -26,19 +49,22 @@ const SideBar = () => {
       <div className='pb-6 border-b border-white/20'>
         <div className='flex justify-between items-center'>
           <img src={assets.logo} alt="logo" className='max-w-40 drop-shadow-lg' />
-          <div className='relative py-2 group'>
-            <div className='w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all duration-200 backdrop-blur-sm'>
+          <div className='relative py-2 dropdown-container'>
+            <div 
+              onClick={() => setShowDropdown(!showDropdown)}
+              className='w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all duration-200 backdrop-blur-sm'
+            >
               <img src={assets.menu_icon} alt="Menu" className='max-h-5 filter brightness-0 invert' />
             </div>
-            <div className='absolute top-full right-0 z-20 w-40 p-3 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 text-white shadow-2xl hidden group-hover:block'>
-              <p onClick={()=>navigate('/profile')} className='cursor-pointer text-sm py-2 px-3 rounded-lg hover:bg-white/20 transition-all duration-200 flex items-center gap-2'>
+            <div className={`absolute top-full right-0 z-20 w-40 p-3 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 text-white shadow-2xl transition-all duration-200 ${showDropdown ? 'block opacity-100 transform translate-y-0' : 'hidden opacity-0 transform -translate-y-2'}`}>
+              <p onClick={handleProfileClick} className='cursor-pointer text-sm py-2 px-3 rounded-lg hover:bg-white/20 transition-all duration-200 flex items-center gap-2'>
                 <svg className='w-4 h-4' fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 Edit Profile
               </p>
               <hr className='my-2 border-t border-white/20' />
-              <p onClick={()=>logout()} className='cursor-pointer text-sm py-2 px-3 rounded-lg hover:bg-red-500/20 transition-all duration-200 flex items-center gap-2 text-red-300'>
+              <p onClick={handleLogoutClick} className='cursor-pointer text-sm py-2 px-3 rounded-lg hover:bg-red-500/20 transition-all duration-200 flex items-center gap-2 text-red-300'>
                 <svg className='w-4 h-4' fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
