@@ -1,8 +1,8 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
-import assets from '../assets/assets'; // Assuming this path is correct for your project
-import { formatMessageTime } from '../lib/utils'; // Assuming this path and function are correct
-import { ChatContext } from '../../context/ChatContext'; // Assuming this path is correct
-import { Authcontext } from '../../context/AuthContext'; // Assuming this path is correct
+import assets from '../assets/assets';
+import { formatMessageTime } from '../lib/utils';
+import { ChatContext } from '../../context/ChatContext';
+import { Authcontext } from '../../context/AuthContext';
 import toast from 'react-hot-toast'; // Ensure this import is correct and toast is properly configured
 
 // Video Call Hook - Encapsulates all WebRTC and video call logic
@@ -14,7 +14,6 @@ const useVideoCall = (socket, authUser, selectedUser) => {
     const [isInCall, setIsInCall] = useState(false);
     const [callId, setCallId] = useState(null);
     const [connectionState, setConnectionState] = useState('disconnected');
-    const [isRemoteVideoPaused, setIsRemoteVideoPaused] = useState(true); // New state for remote video playback
 
     // Refs for RTCPeerConnection instance and video elements
     const peerRef = useRef(null);
@@ -96,13 +95,10 @@ const useVideoCall = (socket, authUser, selectedUser) => {
                 if (!videoElement) return; // Double check element existence
                 console.log('Attempting to play local video. Current state:', videoElement.paused, videoElement.ended);
                 try {
-                    // Attempt to play the video. Browsers often require user interaction
-                    // or a 'muted' attribute for autoplay.
                     await videoElement.play();
                     console.log('Local video started playing successfully.');
                 } catch (e) {
                     console.error("Error playing local video:", e);
-                    // Provide user feedback if autoplay is blocked
                     if (e.name === "NotAllowedError") {
                         toast.error("Local video autoplay blocked. Please grant camera/microphone permissions.");
                     } else if (e.name === "NotReadableError") {
@@ -118,21 +114,12 @@ const useVideoCall = (socket, authUser, selectedUser) => {
             playVideo(); // Try playing immediately
             videoElement.onloadedmetadata = playVideo; // Try playing once metadata is loaded
 
-            // Add listeners to track actual playback state
-            const handlePlay = () => console.log('Local video is playing.');
-            const handlePause = () => console.log('Local video is paused.');
-            videoElement.addEventListener('play', handlePlay);
-            videoElement.addEventListener('pause', handlePause);
-
             console.log('Local stream video tracks:', localStream.getVideoTracks());
             console.log('Local stream audio tracks:', localStream.getAudioTracks());
 
-            // Cleanup function: remove the event listener when component unmounts or stream changes
             return () => {
                 if (videoElement) {
                     videoElement.onloadedmetadata = null; // Clean up event listener
-                    videoElement.removeEventListener('play', handlePlay);
-                    videoElement.removeEventListener('pause', handlePause);
                 }
             };
         } else if (videoElement) {
@@ -157,12 +144,10 @@ const useVideoCall = (socket, authUser, selectedUser) => {
                 try {
                     await videoElement.play();
                     console.log('Remote video started playing successfully.');
-                    setIsRemoteVideoPaused(false); // Update state when playing
                 } catch (e) {
                     console.error("Error playing remote video:", e);
-                    setIsRemoteVideoPaused(true); // Set state to paused if autoplay blocked
                     if (e.name === "NotAllowedError") {
-                        toast.error("Remote video autoplay blocked. Please click the 'Play Video' button.");
+                        toast.error("Remote video autoplay blocked. Please interact with the page.");
                     } else if (e.name === "NotReadableError") {
                         toast.error("Remote video not readable.");
                     } else if (e.name === "AbortError") {
@@ -176,27 +161,17 @@ const useVideoCall = (socket, authUser, selectedUser) => {
             playVideo(); // Try playing immediately
             videoElement.onloadedmetadata = playVideo; // Try playing once metadata is loaded
 
-            // Add listeners to track actual playback state
-            const handlePlay = () => setIsRemoteVideoPaused(false);
-            const handlePause = () => setIsRemoteVideoPaused(true);
-            videoElement.addEventListener('play', handlePlay);
-            videoElement.addEventListener('pause', handlePause);
-
             console.log('Remote stream video tracks:', remoteStream.getVideoTracks());
             console.log('Remote stream audio tracks:', remoteStream.getAudioTracks());
 
-            // Cleanup function: remove the event listener
             return () => {
                 if (videoElement) {
                     videoElement.onloadedmetadata = null; // Clean up event listener
-                    videoElement.removeEventListener('play', handlePlay);
-                    videoElement.removeEventListener('pause', handlePause);
                 }
             };
         } else if (videoElement) {
             videoElement.srcObject = null;
             console.log('Remote video srcObject cleared.');
-            setIsRemoteVideoPaused(true); // Reset state if stream is cleared
         }
     }, [remoteStream]);
 
@@ -358,7 +333,8 @@ const useVideoCall = (socket, authUser, selectedUser) => {
 
         cleanupCall(); // Clean up all WebRTC resources
         setIsInCall(false); // Update call status
-        toast.success('Call ended'); // Using toast.success for consistency
+        // Using toast.success here for consistency, as toast.info was causing the error
+        toast.success('Call ended');
     };
 
     /**
@@ -392,10 +368,10 @@ const useVideoCall = (socket, authUser, selectedUser) => {
             setRemoteStream(null);
         }
 
+        // Reset call-related states
         setCallId(null);
         setConnectionState('disconnected');
         iceCandidatesQueue.current = []; // Clear any pending ICE candidates
-        setIsRemoteVideoPaused(true); // Reset remote video state on cleanup
         console.log('Call resources cleaned up.');
     };
 
@@ -454,7 +430,8 @@ const useVideoCall = (socket, authUser, selectedUser) => {
             cleanupCall(); // Clean up resources
             setIsInCall(false);
             setIncomingCall(null); // Clear incoming call state
-            toast.success(reason || 'Call ended'); // Using toast.success for consistency
+            // Using toast.success here for consistency, as toast.info was causing the error
+            toast.success(reason || 'Call ended');
         };
 
         // Listener for incoming ICE candidates from the remote peer
@@ -525,20 +502,7 @@ const useVideoCall = (socket, authUser, selectedUser) => {
         startCall,
         acceptCall,
         declineCall,
-        endCall,
-        isRemoteVideoPaused, // Expose this state
-        playRemoteVideo: async () => { // Function to manually play remote video
-            if (remoteVideoRef.current) {
-                try {
-                    await remoteVideoRef.current.play();
-                    setIsRemoteVideoPaused(false);
-                    console.log('Manually played remote video.');
-                } catch (e) {
-                    console.error('Error manually playing remote video:', e);
-                    toast.error('Could not play remote video. Autoplay blocked or error: ' + e.message);
-                }
-            }
-        }
+        endCall
     };
 };
 
@@ -565,9 +529,7 @@ const ChatContainer = () => {
         startCall,
         acceptCall,
         declineCall,
-        endCall,
-        isRemoteVideoPaused, // Get the state
-        playRemoteVideo // Get the function to play remote video
+        endCall
     } = useVideoCall(socket, authUser, selectedUser);
 
     /**
@@ -884,17 +846,6 @@ const ChatContainer = () => {
                             playsInline
                             className="w-full h-full object-cover"
                         />
-                        {/* Play button overlay for remote video if paused */}
-                        {isRemoteVideoPaused && remoteStream && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                                <button
-                                    onClick={playRemoteVideo}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full text-lg shadow-lg transition-all duration-300 transform hover:scale-110"
-                                >
-                                    ▶️ Play Video
-                                </button>
-                            </div>
-                        )}
 
                         {/* Connection Status */}
                         {connectionState !== 'connected' && (
@@ -914,12 +865,6 @@ const ChatContainer = () => {
                                 playsInline
                                 className="w-full h-full object-cover"
                             />
-                            {/* Optional: Add a message if local video is not playing */}
-                            {localStream && localVideoRef.current && localVideoRef.current.paused && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-xs p-2 text-center">
-                                    Local video paused.
-                                </div>
-                            )}
                         </div>
 
                         {/* Call Controls */}
