@@ -1,3 +1,4 @@
+
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import assets from '../assets/assets';
 import { formatMessageTime } from '../lib/utils';
@@ -30,7 +31,6 @@ const useVideoCall = (socket, authUser, selectedUser) => {
     // Initialize peer connection
     const createPeerConnection = () => {
         console.log('🔄 Creating new RTCPeerConnection');
-        // FIX: Corrected typo from RTCPemberikan to RTCPeerConnection
         const peer = new RTCPeerConnection(iceServers);
 
         peer.onicecandidate = (event) => {
@@ -68,28 +68,34 @@ const useVideoCall = (socket, authUser, selectedUser) => {
         return peer;
     };
 
-    // Effect to set local video stream to the video element
+    // Effect to set local video stream to the video element and ensure playback
     useEffect(() => {
         if (localVideoRef.current && localStream) {
             console.log('Setting local video srcObject. Stream:', localStream);
             localVideoRef.current.srcObject = localStream;
-            localVideoRef.current.onloadedmetadata = () => {
+            // Attempt to play immediately, and then again on metadata load for robustness
+            const playVideo = () => {
                 localVideoRef.current.play().catch(e => console.error("Error playing local video:", e));
             };
-        } else if (localVideoRef.current && !localStream) {
+            playVideo(); // Try playing immediately
+            localVideoRef.current.onloadedmetadata = playVideo; // Try playing once metadata is loaded
+        } else if (localVideoRef.current) { // Ensure ref exists before clearing
             localVideoRef.current.srcObject = null;
         }
     }, [localStream]);
 
-    // Effect to set remote video stream to the video element
+    // Effect to set remote video stream to the video element and ensure playback
     useEffect(() => {
         if (remoteVideoRef.current && remoteStream) {
             console.log('Setting remote video srcObject. Stream:', remoteStream);
             remoteVideoRef.current.srcObject = remoteStream;
-            remoteVideoRef.current.onloadedmetadata = () => {
+            // Attempt to play immediately, and then again on metadata load for robustness
+            const playVideo = () => {
                 remoteVideoRef.current.play().catch(e => console.error("Error playing remote video:", e));
             };
-        } else if (remoteVideoRef.current && !remoteStream) {
+            playVideo(); // Try playing immediately
+            remoteVideoRef.current.onloadedmetadata = playVideo; // Try playing once metadata is loaded
+        } else if (remoteVideoRef.current) { // Ensure ref exists before clearing
             remoteVideoRef.current.srcObject = null;
         }
     }, [remoteStream]);
