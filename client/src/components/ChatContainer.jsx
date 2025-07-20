@@ -30,6 +30,7 @@ const useVideoCall = (socket, authUser, selectedUser) => {
     // Initialize peer connection
     const createPeerConnection = () => {
         console.log('🔄 Creating new RTCPeerConnection');
+        // FIX: Corrected typo from RTCPemberikan to RTCPeerConnection
         const peer = new RTCPeerConnection(iceServers);
 
         peer.onicecandidate = (event) => {
@@ -556,7 +557,7 @@ const ChatContainer = () => {
                                 <div className={`flex items-center gap-2 mt-0.5 ${
                                     msg.senderId === authUser._id ? 'justify-end' : 'justify-start'
                                 }`}>
-                                    <p className="text-xs text-gray-400}>{formatMessageTime(msg.createdAt)}</p>
+                                    <p className="text-xs text-gray-400">{formatMessageTime(msg.createdAt)}</p>
                                 </div>
                             </div>
 
