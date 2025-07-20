@@ -1,9 +1,9 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
-import assets from '../assets/assets'; // Assuming this path is correct for your project
-import { formatMessageTime } from '../lib/utils'; // Assuming this path and function are correct
-import { ChatContext } from '../../context/ChatContext'; // Assuming this path is correct
-import { Authcontext } from '../../context/AuthContext'; // Assuming this path is correct
-import toast from 'react-hot-toast'; // Assuming react-hot-toast is installed and used
+import assets from '../assets/assets';
+import { formatMessageTime } from '../lib/utils';
+import { ChatContext } from '../../context/ChatContext';
+import { Authcontext } from '../../context/AuthContext';
+import toast from 'react-hot-toast'; // Ensure this import is correct and toast is properly configured
 
 // Video Call Hook - Encapsulates all WebRTC and video call logic
 const useVideoCall = (socket, authUser, selectedUser) => {
@@ -86,37 +86,44 @@ const useVideoCall = (socket, authUser, selectedUser) => {
      * This runs whenever `localStream` changes.
      */
     useEffect(() => {
-        if (localVideoRef.current && localStream) {
+        const videoElement = localVideoRef.current;
+        if (videoElement && localStream) {
             console.log('Setting local video srcObject. Stream:', localStream);
-            localVideoRef.current.srcObject = localStream;
+            videoElement.srcObject = localStream;
 
             const playVideo = async () => {
+                if (!videoElement) return; // Double check element existence
+                console.log('Attempting to play local video. Current state:', videoElement.paused, videoElement.ended);
                 try {
-                    // Attempt to play the video. Browsers often require user interaction
-                    // or a 'muted' attribute for autoplay.
-                    await localVideoRef.current.play();
+                    await videoElement.play();
                     console.log('Local video started playing successfully.');
                 } catch (e) {
                     console.error("Error playing local video:", e);
-                    // Provide user feedback if autoplay is blocked
-                    toast.error("Local video autoplay blocked. Please ensure media permissions and try again.");
+                    if (e.name === "NotAllowedError") {
+                        toast.error("Local video autoplay blocked. Please grant camera/microphone permissions.");
+                    } else if (e.name === "NotReadableError") {
+                        toast.error("Local video not readable. Camera might be in use by another application.");
+                    } else if (e.name === "AbortError") {
+                        toast.error("Local video playback aborted.");
+                    } else {
+                        toast.error("Error playing local video: " + e.message);
+                    }
                 }
             };
 
-            // Attempt to play immediately when stream is set
-            playVideo();
-            // Also attempt to play when metadata is loaded (for robustness)
-            localVideoRef.current.onloadedmetadata = playVideo;
+            playVideo(); // Try playing immediately
+            videoElement.onloadedmetadata = playVideo; // Try playing once metadata is loaded
 
-            // Cleanup function: remove the event listener when component unmounts or stream changes
+            console.log('Local stream video tracks:', localStream.getVideoTracks());
+            console.log('Local stream audio tracks:', localStream.getAudioTracks());
+
             return () => {
-                if (localVideoRef.current) {
-                    localVideoRef.current.onloadedmetadata = null;
+                if (videoElement) {
+                    videoElement.onloadedmetadata = null; // Clean up event listener
                 }
             };
-        } else if (localVideoRef.current) {
-            // Clear srcObject if stream is null (e.g., call ended)
-            localVideoRef.current.srcObject = null;
+        } else if (videoElement) {
+            videoElement.srcObject = null;
             console.log('Local video srcObject cleared.');
         }
     }, [localStream]);
@@ -126,36 +133,44 @@ const useVideoCall = (socket, authUser, selectedUser) => {
      * This runs whenever `remoteStream` changes.
      */
     useEffect(() => {
-        if (remoteVideoRef.current && remoteStream) {
+        const videoElement = remoteVideoRef.current;
+        if (videoElement && remoteStream) {
             console.log('Setting remote video srcObject. Stream:', remoteStream);
-            remoteVideoRef.current.srcObject = remoteStream;
+            videoElement.srcObject = remoteStream;
 
             const playVideo = async () => {
+                if (!videoElement) return; // Double check element existence
+                console.log('Attempting to play remote video. Current state:', videoElement.paused, videoElement.ended);
                 try {
-                    // Attempt to play the video. Remote videos are usually not muted by default.
-                    await remoteVideoRef.current.play();
+                    await videoElement.play();
                     console.log('Remote video started playing successfully.');
                 } catch (e) {
                     console.error("Error playing remote video:", e);
-                    // Provide user feedback if autoplay is blocked
-                    toast.error("Remote video autoplay blocked. Please ensure media permissions and try again.");
+                    if (e.name === "NotAllowedError") {
+                        toast.error("Remote video autoplay blocked. Please interact with the page.");
+                    } else if (e.name === "NotReadableError") {
+                        toast.error("Remote video not readable.");
+                    } else if (e.name === "AbortError") {
+                        toast.error("Remote video playback aborted.");
+                    } else {
+                        toast.error("Error playing remote video: " + e.message);
+                    }
                 }
             };
 
-            // Attempt to play immediately when stream is set
-            playVideo();
-            // Also attempt to play when metadata is loaded
-            remoteVideoRef.current.onloadedmetadata = playVideo;
+            playVideo(); // Try playing immediately
+            videoElement.onloadedmetadata = playVideo; // Try playing once metadata is loaded
 
-            // Cleanup function: remove the event listener
+            console.log('Remote stream video tracks:', remoteStream.getVideoTracks());
+            console.log('Remote stream audio tracks:', remoteStream.getAudioTracks());
+
             return () => {
-                if (remoteVideoRef.current) {
-                    remoteVideoRef.current.onloadedmetadata = null;
+                if (videoElement) {
+                    videoElement.onloadedmetadata = null; // Clean up event listener
                 }
             };
-        } else if (remoteVideoRef.current) {
-            // Clear srcObject if stream is null
-            remoteVideoRef.current.srcObject = null;
+        } else if (videoElement) {
+            videoElement.srcObject = null;
             console.log('Remote video srcObject cleared.');
         }
     }, [remoteStream]);
@@ -247,8 +262,11 @@ const useVideoCall = (socket, authUser, selectedUser) => {
             while (iceCandidatesQueue.current.length > 0) {
                 const candidate = iceCandidatesQueue.current.shift();
                 try {
-                    await peer.addIceCandidate(candidate);
-                    console.log('Added queued ICE candidate:', candidate);
+                    // Ensure peerRef.current is not null before adding candidate
+                    if (peerRef.current) {
+                        await peerRef.current.addIceCandidate(candidate);
+                        console.log('Added queued ICE candidate:', candidate);
+                    }
                 } catch (e) {
                     console.error('Error adding queued ICE candidate:', e);
                 }
@@ -315,7 +333,8 @@ const useVideoCall = (socket, authUser, selectedUser) => {
 
         cleanupCall(); // Clean up all WebRTC resources
         setIsInCall(false); // Update call status
-        toast.info('Call ended');
+        // Using toast.success here for consistency, as toast.info was causing the error
+        toast.success('Call ended');
     };
 
     /**
@@ -384,8 +403,11 @@ const useVideoCall = (socket, authUser, selectedUser) => {
                 while (iceCandidatesQueue.current.length > 0) {
                     const candidate = iceCandidatesQueue.current.shift();
                     try {
-                        await peerRef.current.addIceCandidate(candidate);
-                        console.log('Added queued ICE candidate after answer:', candidate);
+                        // Ensure peerRef.current is not null before adding candidate
+                        if (peerRef.current) {
+                            await peerRef.current.addIceCandidate(candidate);
+                            console.log('Added queued ICE candidate after answer:', candidate);
+                        }
                     } catch (e) {
                         console.error('Error adding queued ICE candidate after answer:', e);
                     }
@@ -408,7 +430,8 @@ const useVideoCall = (socket, authUser, selectedUser) => {
             cleanupCall(); // Clean up resources
             setIsInCall(false);
             setIncomingCall(null); // Clear incoming call state
-            toast.info(reason || 'Call ended');
+            // Using toast.success here for consistency, as toast.info was causing the error
+            toast.success(reason || 'Call ended');
         };
 
         // Listener for incoming ICE candidates from the remote peer
@@ -623,7 +646,6 @@ const ChatContainer = () => {
                         </p>
                         <p className="text-xs text-gray-300">
                             {onlineUsers.includes(selectedUser._id) ? 'Online' : 'Offline'}
-                            {/* Display connection state only if in call */}
                             {connectionState !== 'disconnected' && (
                                 <span className="ml-2 text-green-400">• {connectionState}</span>
                             )}
